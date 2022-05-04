@@ -42,6 +42,11 @@ from ..exceptions import (
 from ._extra_imports import aiohttp, aiohttp_exceptions, yarl
 from .compat import get_running_loop
 
+import json
+import boto3
+import requests
+from requests_aws4auth import AWS4Auth
+
 # sentinel value for `verify_certs`.
 # This is used to detect if a user is passing in a value
 # for SSL kwargs if also using an SSLContext.
@@ -205,16 +210,16 @@ class AIOHttpConnection(AsyncConnection):
                 ssl_context.load_verify_locations(capath=ca_certs)
             else:
                 raise ImproperlyConfigured("ca_certs parameter is not a path")
-
-            # Use client_cert and client_key variables for SSL certificate configuration.
-            if client_cert and not os.path.isfile(client_cert):
-                raise ImproperlyConfigured("client_cert is not a path to a file")
-            if client_key and not os.path.isfile(client_key):
-                raise ImproperlyConfigured("client_key is not a path to a file")
-            if client_cert and client_key:
-                ssl_context.load_cert_chain(client_cert, client_key)
-            elif client_cert:
-                ssl_context.load_cert_chain(client_cert)
+# COMMENTED OUT FOR SIGV4
+#             # Use client_cert and client_key variables for SSL certificate configuration.
+#             if client_cert and not os.path.isfile(client_cert):
+#                 raise ImproperlyConfigured("client_cert is not a path to a file")
+#             if client_key and not os.path.isfile(client_key):
+#                 raise ImproperlyConfigured("client_key is not a path to a file")
+#             if client_cert and client_key:
+#                 ssl_context.load_cert_chain(client_cert, client_key)
+#             elif client_cert:
+#                 ssl_context.load_cert_chain(client_cert)
 
         self.headers.setdefault("connection", "keep-alive")
         self.loop = loop
@@ -286,6 +291,14 @@ class AIOHttpConnection(AsyncConnection):
 
         start = self.loop.time()
         try:
+            #print(">>>>>>>>>> About to execute _get_api_response")
+            #print(">>>>>>>>>> url/ method/ body/ req_headers/ params")
+            #print(url)
+            #print(method)
+            #print(body)
+            #print(req_headers)
+            #print(params)
+            #print(">>>>>>>>>> About to execute _get_api_response")
             async with self.session.request(
                 method,
                 url,
@@ -294,17 +307,29 @@ class AIOHttpConnection(AsyncConnection):
                 timeout=timeout,
                 fingerprint=self.ssl_assert_fingerprint,
             ) as response:
+                #print(">>>>>>>>>>>>>> MAJOR :::: ")
+                #print(response)
+                #print(dir(response))
                 if is_head:  # We actually called 'GET' so throw away the data.
+                    #print("In the if part")
                     await response.release()
                     raw_data = ""
                 else:
+                    #print("In the else part")
                     raw_data = await response.text()
+                #print(">>>>> We're here!!!!")
+                #print(raw_data)
                 duration = self.loop.time() - start
 
         # We want to reraise a cancellation or recursion error.
         except reraise_exceptions:
             raise
         except Exception as e:
+            #print(">>>>>>>>>>>>>>>>>>>>>>>>Async http caught exception ")
+            #print(traceback.format_exc())
+            #print(">>>>>>>>>>>>>>>>>>>>>>>>Async http caught exception ")
+            # #print(e)
+            # #print(e.status_code)
             self.log_request_fail(
                 method,
                 str(url),
@@ -322,8 +347,8 @@ class AIOHttpConnection(AsyncConnection):
             raise ConnectionError("N/A", str(e), e)
 
         # raise warnings if any from the 'Warnings' header.
-        warning_headers = response.headers.getall("warning", ())
-        self._raise_warnings(warning_headers)
+#         warning_headers = response.headers.getall("warning", ())
+#         self._raise_warnings(warning_headers)
 
         # raise errors based on http status codes, let the client handle those if needed
         if not (200 <= response.status < 300) and response.status not in ignore:
@@ -342,7 +367,69 @@ class AIOHttpConnection(AsyncConnection):
             method, str(url), url_path, orig_body, response.status, raw_data, duration
         )
 
-        return response.status, response.headers, raw_data
+
+        #print(">>>>>>>>>>>Returning values:")
+        #print(response.status_code)
+        #print(response.headers)
+        #print(raw_data)
+
+        return response.status_code, response.headers, raw_data
+
+    class _get_api_response:
+
+        def __init__(self,
+                     method,
+                     full_url,
+                     body,
+                     headers,
+                     params):
+            self.method = method
+            self.full_url = full_url
+            self.body = body
+            self.headers = headers
+            self.params = params
+
+        async def __aenter__(self):
+            response = ''
+            #print(">>>>>>>>>>>>>>Achit Inside _get_api_response")
+            region = 'eu-west-1'
+            service = 'aoss'  ## also tried with 'os', 'osearch', 'opensearch'
+            credentials = boto3.Session().get_credentials()
+            my_headers = {"Content-Type": "application/json"}
+            awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service,
+                               session_token=credentials.token)
+
+            #print('>>>> self.method')
+            #print(self.method)
+            #print('>>>> params')
+            #print(self.params)
+            #print('>>> awsauth')
+            #print(awsauth)
+            #print('>>>>> request_headers')
+            #print(my_headers)
+            #print(">>>>>self.full_url")
+            #print(self.full_url)
+            #print('>>>>>>> self.body')
+            #print(self.body)
+
+            if self.method == 'GET':
+                response = requests.get(self.full_url, auth=awsauth)
+            elif self.method == 'HEAD':
+                response = requests.head(self.full_url, auth=awsauth)
+            elif self.method == 'DELETE':
+                response = requests.delete(self.full_url, auth=awsauth)
+            elif self.method == 'PATCH':
+                response = requests.patch(self.full_url, data=self.body, auth=awsauth)
+            elif self.method == 'POST':
+                response = requests.post(self.full_url, data=self.body, auth=awsauth, headers=my_headers)
+            elif self.method == 'PUT':
+                response = requests.put(self.full_url, data=self.body, auth=awsauth, headers=my_headers)
+
+            return response
+
+        async def __aexit__(self, exc_type, exc, tb):
+            # clean up anything you need to clean up
+            pass
 
     async def close(self):
         """

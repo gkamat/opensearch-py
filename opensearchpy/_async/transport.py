@@ -28,6 +28,7 @@ import asyncio
 import logging
 import sys
 from itertools import chain
+import traceback
 
 from ..exceptions import (
     ConnectionError,
@@ -98,6 +99,10 @@ class AsyncTransport(Transport):
         super(AsyncTransport, self).__init__(
             *args, hosts=[], sniff_on_start=False, **kwargs
         )
+
+        # Don't enable sniffing on Cloud instances.
+        if kwargs.get("cloud_id", False):
+            sniff_on_start = False
 
         # Since we defer connections / sniffing to not occur
         # within the constructor we never want to signal to
@@ -335,6 +340,13 @@ class AsyncTransport(Transport):
         for attempt in range(self.max_retries + 1):
             connection = self.get_connection()
 
+            #print(">>>>>>> Inside async transport.py")
+            #print(">>>>>>>method")
+            #print(method)
+            #print(">>>>>>params")
+            #print(params)
+            #print(">>>>>>>>>body")
+            #print(body)
             try:
                 status, headers_response, data = await connection.perform_request(
                     method,
@@ -350,7 +362,17 @@ class AsyncTransport(Transport):
                 headers_response = {
                     header.lower(): value for header, value in headers_response.items()
                 }
+                #print(">>>>>>>>> async transport returning")
+                #print(">>>>>>>>> status headers data")
+                #print(status)
+                #print(headers)
+                #print(data)
             except TransportError as e:
+                #print(traceback.format_exc())
+                #print(">>>>>>>TransportException caught inside async transport.py")
+                #print(e)
+                #print(e.status_code)
+
                 if method == "HEAD" and e.status_code == 404:
                     return False
 
@@ -378,6 +400,7 @@ class AsyncTransport(Transport):
 
             else:
                 # connection didn't fail, confirm it's live status
+                #print("Generic exception!!!!!!!!!!")
                 self.connection_pool.mark_live(connection)
 
                 if method == "HEAD":

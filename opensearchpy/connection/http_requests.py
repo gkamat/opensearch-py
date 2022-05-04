@@ -34,7 +34,7 @@ try:
 except ImportError:
     REQUESTS_AVAILABLE = False
 
-from ..compat import reraise_exceptions, string_types, urlencode
+from ..compat import reraise_exceptions, string_types, urlencode, string_types
 from ..exceptions import (
     ConnectionError,
     ConnectionTimeout,
@@ -42,6 +42,16 @@ from ..exceptions import (
     SSLError,
 )
 from .base import Connection
+
+import json
+import boto3
+import requests
+from requests_aws4auth import AWS4Auth
+
+region = 'eu-west-1'
+service = 'es' ## also tried with 'os', 'osearch', 'opensearch'
+credentials = boto3.Session().get_credentials()
+awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
 
 
 class RequestsHttpConnection(Connection):
@@ -152,17 +162,43 @@ class RequestsHttpConnection(Connection):
             headers["content-encoding"] = "gzip"
 
         start = time.time()
-        request = requests.Request(method=method, headers=headers, url=url, data=body)
-        prepared_request = self.session.prepare_request(request)
-        settings = self.session.merge_environment_settings(
-            prepared_request.url, {}, None, None, None
-        )
-        send_kwargs = {"timeout": timeout or self.timeout}
-        send_kwargs.update(settings)
+        # request = requests.Request(method=method, headers=headers, auth=awsauth, url=url, data=body)
+        # prepared_request = self.session.prepare_request(request)
+        # settings = self.session.merge_environment_settings(
+        #     prepared_request.url, {}, None, None, None
+        # )
+        # send_kwargs = {"timeout": timeout or self.timeout}
+        # send_kwargs.update(settings)
         try:
-            response = self.session.send(prepared_request, **send_kwargs)
+            response = ''
+            #print(">>>>>params1")
+            #print(params)
+            #print(">>>>>>url1")
+            #print(url)
+            #print(">>>>>>>>>request_headers1")
+            #print(request_headers)
+            if method == 'GET':
+                response = requests.get(url, auth=awsauth, headers=request_headers)
+            elif method == 'HEAD':
+                response = requests.head(url, auth=awsauth, headers=request_headers)
+            elif method == 'DELETE':
+                response = requests.delete(url, auth=awsauth, headers=request_headers)
+            elif method == 'PATCH':
+                response = requests.patch(url, auth=awsauth, headers=request_headers, data=body)
+            elif method == 'POST':
+                response = requests.post(url, auth=awsauth, headers=request_headers, data=body)
+            elif method == 'PUT':
+                response = requests.put(url, auth=awsauth, headers=request_headers, data=body)
+
             duration = time.time() - start
-            raw_data = response.content.decode("utf-8", "surrogatepass")
+
+            #print('>>>>>>>> response1 ')
+            #print(response)
+            #print('>>>>>>> response.content1')
+            #print(response.content)
+            #print('>>>>>>> response.status1')
+            #print(response.status)
+            raw_data = response.content
         except reraise_exceptions:
             raise
         except Exception as e:

@@ -219,6 +219,24 @@ class Urllib3HttpConnection(Connection):
     def perform_request(
         self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
     ):
+        if "mensor-metrics" not in self.host:
+            #print("Going to sigV4 >>>>>>>>>>>")
+            #print(">>>>self.host")
+            #print(self.host)
+            #print(">>>>>>url")
+            #print(url)
+            return self.sigv4_perform_request(method, url, params, body, timeout, ignore, headers)
+        else:
+            #print(">>>>self.host")
+            #print(self.host)
+            #print(">>>>>>url")
+            #print(url)
+            #print("going to standard perform requests>>>>>>>>>>")
+            return self.default_perform_request(method, url, params, body, timeout, ignore, headers)
+
+    def default_perform_request(
+            self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
+    ):
         url = self.url_prefix + url
         if params:
             url = "%s?%s" % (url, urlencode(params))
@@ -251,8 +269,9 @@ class Urllib3HttpConnection(Connection):
             )
             duration = time.time() - start
             raw_data = response.data.decode("utf-8", "surrogatepass")
-        except reraise_exceptions:
-            raise
+# COMMENTED OUT FOR SIGV4
+#         except reraise_exceptions:
+#             raise
         except Exception as e:
             self.log_request_fail(
                 method, full_url, url, orig_body, time.time() - start, exception=e
@@ -284,8 +303,127 @@ class Urllib3HttpConnection(Connection):
 
         return response.status, response.getheaders(), raw_data
 
-    def get_response_headers(self, response):
-        return {header.lower(): value for header, value in response.headers.items()}
+    def sigv4_perform_request(
+            self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
+    ):
+
+        #print('>>>>>> initial url is ')
+        #print(url)
+        #print('........ params')
+        #print(params)
+        #print('........ method')
+        #print(method)
+        #print('........ body')
+        #print(body)
+        #print('........ headers')
+        #print(headers)
+        #print('........ host')
+        #print(self.host)
+        url = self.url_prefix + url
+        # if params:
+        #     url = "%s?%s" % (url, urlencode(params))
+        full_url = self.host + url
+
+        #print('>>>>>>> full url')
+        #print(full_url)
+
+        start = time.time()
+        orig_body = body
+        try:
+            kw = {}
+            if timeout:
+                kw["timeout"] = timeout
+
+            # in python2 we need to make sure the url and method are not
+            # unicode. Otherwise the body will be decoded into unicode too and
+            # that will fail (#133, #201).
+            if not isinstance(url, str):
+                url = url.encode("utf-8")
+            if not isinstance(method, str):
+                method = method.encode("utf-8")
+
+            request_headers = self.headers.copy()
+            request_headers.update(headers or ())
+
+            if self.http_compress and body:
+                body = self._gzip_compress(body)
+                request_headers["content-encoding"] = "gzip"
+
+            #print('>>>>>>url is ')
+            #print(url)
+            # response = self.pool.urlopen(
+            #     method, url, body, retries=Retry(False), headers=request_headers, **kw
+            # )
+            response = ''
+            region = 'eu-west-1'
+            service = 'es' ## also tried with 'os', 'osearch', 'opensearch'
+            credentials = boto3.Session().get_credentials()
+            my_headers = {"Content-Type": "application/json"}
+            awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
+
+            #print('>>>> params')
+            #print(params)
+            #print('>>> awsauth')
+            #print(awsauth)
+            #print('>>>>> request_headers')
+            #print(my_headers)
+            #print(">>>>>full_url")
+            #print(full_url)
+
+            if method == 'GET':
+                response = requests.get(full_url, auth=awsauth)
+            elif method == 'HEAD':
+                response = requests.head(full_url, auth=awsauth)
+            elif method == 'DELETE':
+                response = requests.delete(full_url, auth=awsauth)
+            elif method == 'PATCH':
+                response = requests.patch(full_url, auth=awsauth, data=body)
+            elif method == 'POST':
+                response = requests.post(full_url, auth=awsauth, data=body)
+            elif method == 'PUT':
+                response = requests.put(full_url, auth=awsauth, data=body)
+
+            duration = time.time() - start
+            #print('>>>>>>>> response ')
+            #print(response)
+            #print('>>>>>>> response.content')
+            #print(response.content)
+            #print('>>>>>>> response.status_code')
+            #print(response.status_code)
+            raw_data = response.content
+
+            # raise warnings if any from the 'Warnings' header.
+
+        except Exception as e:
+            #print(">>>>>>>>>>>>>Exception is :::::::::::::::::")
+            #print(e)
+            self.log_request_fail(
+                method, full_url, url, orig_body, time.time() - start, exception=e
+            )
+            if isinstance(e, UrllibSSLError):
+                raise SSLError("N/A", str(e), e)
+            if isinstance(e, ReadTimeoutError):
+                raise ConnectionTimeout("TIMEOUT", str(e), e)
+            raise ConnectionError("N/A", str(e), e)
+
+        #print(">>>>>> response :")
+        #print(response)
+
+        #print(dir(response))
+        #print(response.status_code)
+        # raise errors based on http status codes, let the client handle those if needed
+        if not (200 <= response.status_code < 300) and response.status_code not in ignore:
+            self.log_request_fail(
+                method, full_url, url, orig_body, duration, response.status_code, raw_data
+            )
+            self._raise_error(response.status_code, raw_data)
+
+        self.log_request_success(
+            method, full_url, url, orig_body, response.status_code, raw_data, duration
+        )
+
+        return response.status_code, response.headers, raw_data
+
 
     def close(self):
         """

@@ -166,6 +166,11 @@ class Transport(object):
         else:
             self.seed_connections = []
 
+        # Don't enable sniffing on Cloud instances.
+        if kwargs.get("cloud_id", False):
+            sniff_on_start = False
+            sniff_on_connection_fail = False
+
         # sniffing data
         self.sniffer_timeout = sniffer_timeout
         self.sniff_on_start = sniff_on_start
@@ -259,11 +264,11 @@ class Transport(object):
                         "/_nodes/_all/http",
                         timeout=self.sniff_timeout if not initial else None,
                     )
-
-                    # Lowercase all the header names for consistency in accessing them.
-                    headers = {
-                        header.lower(): value for header, value in headers.items()
-                    }
+# COMMENTED OUT FOR SIGV4
+#                     # Lowercase all the header names for consistency in accessing them.
+#                     headers = {
+#                         header.lower(): value for header, value in headers.items()
+#                     }
 
                     node_info = self.deserializer.loads(
                         node_info, headers.get("content-type")
@@ -357,13 +362,26 @@ class Transport(object):
         :arg body: body of the request, will be serialized using serializer and
             passed to the connection
         """
+        #print(">>>>>>>>>>>> previous body version")
+        #print(body)
+        #print(">>>>>>>>>>>> end previous body version")
         method, params, body, ignore, timeout = self._resolve_request_args(
             method, params, body
         )
 
+        #print(">>>>>>Received request for : ")
+        #print(url)
+        #print(">>>>>>>>method")
+        #print(method)
+        #print(">>>>>>>>>params")
+        #print(params)
+        #print(">>>>>>>>>>>>body")
+        #print(body)
+
         for attempt in range(self.max_retries + 1):
             connection = self.get_connection()
 
+            #print("Attempting to execute request")
             try:
                 status, headers_response, data = connection.perform_request(
                     method,
@@ -375,12 +393,22 @@ class Transport(object):
                     timeout=timeout,
                 )
 
-                # Lowercase all the header names for consistency in accessing them.
-                headers_response = {
-                    header.lower(): value for header, value in headers_response.items()
-                }
+                #print(">>>>>>>status")
+                #print(status)
+                #print(">>>>>>>>>>headers_response")
+                #print(headers_response)
+                #print(">>>>>>>>>>>data")
+                #print(data)
+
+# COMMENTED OUT FOR SIGV4
+#                 # Lowercase all the header names for consistency in accessing them.
+#                 headers_response = {
+#                     header.lower(): value for header, value in headers_response.items()
+#                 }
 
             except TransportError as e:
+                #print("Inside transport exception!!!!")
+                #print(e)
                 if method == "HEAD" and e.status_code == 404:
                     return False
 
@@ -417,6 +445,8 @@ class Transport(object):
                     data = self.deserializer.loads(
                         data, headers_response.get("content-type")
                     )
+                #print("return data is >>>>>>>>")
+                #print(data)
                 return data
 
     def close(self):
