@@ -359,7 +359,7 @@ class Urllib3HttpConnection(Connection):
             service = 'es' ## also tried with 'os', 'osearch', 'opensearch'
             credentials = boto3.Session().get_credentials()
             my_headers = {"Content-Type": "application/json"}
-            awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
+            awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service)
 
             #print('>>>> params')
             #print(params)

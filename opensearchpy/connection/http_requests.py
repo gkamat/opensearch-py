@@ -51,7 +51,7 @@ from requests_aws4auth import AWS4Auth
 region = 'eu-west-1'
 service = 'es' ## also tried with 'os', 'osearch', 'opensearch'
 credentials = boto3.Session().get_credentials()
-awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service, session_token=credentials.token)
+awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service)
 
 
 class RequestsHttpConnection(Connection):
