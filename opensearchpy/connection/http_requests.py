@@ -48,8 +48,8 @@ import boto3
 import requests
 from requests_aws4auth import AWS4Auth
 
-region = 'eu-west-1'
-service = 'es' ## also tried with 'os', 'osearch', 'opensearch'
+region = 'us-east-1'
+service = 'aoss' ## also tried with 'os', 'osearch', 'opensearch'
 credentials = boto3.Session().get_credentials()
 awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service)
 
@@ -162,13 +162,13 @@ class RequestsHttpConnection(Connection):
             headers["content-encoding"] = "gzip"
 
         start = time.time()
-        # request = requests.Request(method=method, headers=headers, auth=awsauth, url=url, data=body)
-        # prepared_request = self.session.prepare_request(request)
-        # settings = self.session.merge_environment_settings(
-        #     prepared_request.url, {}, None, None, None
-        # )
-        # send_kwargs = {"timeout": timeout or self.timeout}
-        # send_kwargs.update(settings)
+        request = requests.Request(method=method, headers=headers, auth=awsauth, url=url, data=body)
+        prepared_request = self.session.prepare_request(request)
+        settings = self.session.merge_environment_settings(
+            prepared_request.url, {}, None, None, None
+        )
+        send_kwargs = {"timeout": timeout or self.timeout}
+        send_kwargs.update(settings)
         try:
             response = ''
             #print(">>>>>params1")

@@ -34,6 +34,12 @@ from urllib3.exceptions import SSLError as UrllibSSLError  # type: ignore
 from urllib3.util.retry import Retry  # type: ignore
 
 from ..compat import reraise_exceptions, urlencode
+
+import json
+import boto3
+import requests
+from requests_aws4auth import AWS4Auth
+
 from ..exceptions import (
     ConnectionError,
     ConnectionTimeout,
@@ -219,19 +225,23 @@ class Urllib3HttpConnection(Connection):
     def perform_request(
         self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
     ):
+        import logging
+        logging.info("USING PERFORM_REQUEST IN HTTP_URLLIB3")
         if "mensor-metrics" not in self.host:
-            #print("Going to sigV4 >>>>>>>>>>>")
-            #print(">>>>self.host")
-            #print(self.host)
-            #print(">>>>>>url")
-            #print(url)
+            logging.info("USING SIGV4_PERFORM_REQUEST")
+            print("Going to sigV4 >>>>>>>>>>>")
+            print(">>>>self.host")
+            print(self.host)
+            print(">>>>>>url")
+            print(url)
             return self.sigv4_perform_request(method, url, params, body, timeout, ignore, headers)
         else:
-            #print(">>>>self.host")
-            #print(self.host)
-            #print(">>>>>>url")
-            #print(url)
-            #print("going to standard perform requests>>>>>>>>>>")
+            logging.info("USING DEFAULT_PERFORM_REQUEST")
+            print(">>>>self.host")
+            print(self.host)
+            print(">>>>>>url")
+            print(url)
+            print("going to standard perform requests>>>>>>>>>>")
             return self.default_perform_request(method, url, params, body, timeout, ignore, headers)
 
     def default_perform_request(
@@ -307,18 +317,18 @@ class Urllib3HttpConnection(Connection):
             self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
     ):
 
-        #print('>>>>>> initial url is ')
-        #print(url)
-        #print('........ params')
-        #print(params)
-        #print('........ method')
-        #print(method)
-        #print('........ body')
-        #print(body)
-        #print('........ headers')
-        #print(headers)
-        #print('........ host')
-        #print(self.host)
+        print('>>>>>> initial url is ')
+        print(url)
+        print('........ params')
+        print(params)
+        print('........ method')
+        print(method)
+        print('........ body')
+        print(body)
+        print('........ headers')
+        print(headers)
+        print('........ host')
+        print(self.host)
         url = self.url_prefix + url
         # if params:
         #     url = "%s?%s" % (url, urlencode(params))
@@ -355,10 +365,10 @@ class Urllib3HttpConnection(Connection):
             #     method, url, body, retries=Retry(False), headers=request_headers, **kw
             # )
             response = ''
-            region = 'eu-west-1'
-            service = 'es' ## also tried with 'os', 'osearch', 'opensearch'
+            region = 'us-east-1'
+            service = 'aoss' ## also tried with 'os', 'osearch', 'opensearch'
             credentials = boto3.Session().get_credentials()
-            my_headers = {"Content-Type": "application/json"}
+#             my_headers = {"Content-Type": "application/json"}
             awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service)
 
             #print('>>>> params')

@@ -46,6 +46,7 @@ import json
 import boto3
 import requests
 from requests_aws4auth import AWS4Auth
+import traceback
 
 # sentinel value for `verify_certs`.
 # This is used to detect if a user is passing in a value
@@ -173,7 +174,7 @@ class AIOHttpConnection(AsyncConnection):
             if ssl_version is None:
                 ssl_context = ssl.create_default_context()
             else:
-                ssl_context = ssl.SSLContext(ssl_version)
+                ssl_context = ssl.SSLContext(ssl_version or ssl.PROTOCOL_TLS)
 
             # Convert all sentinel values to their actual default
             # values if not using an SSLContext.
@@ -233,7 +234,11 @@ class AIOHttpConnection(AsyncConnection):
     async def perform_request(
         self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
     ):
+        import logging
+        logging.info("INSIDE PERFORM_REQUEST FROM HTTP_AIOHTTP")
+
         if self.session is None:
+            logging.info("Creating session")
             await self._create_aiohttp_session()
         assert self.session is not None
 
@@ -291,6 +296,12 @@ class AIOHttpConnection(AsyncConnection):
 
         start = self.loop.time()
         try:
+            logging.info("About to execute _get_api_response")
+            logging.info("url :", url)
+            logging.info("method: ", method)
+            logging.info("body: ", body)
+            logging.info("req_headers: ", req_headers)
+            logging.info("params: ", params)
             #print(">>>>>>>>>> About to execute _get_api_response")
             #print(">>>>>>>>>> url/ method/ body/ req_headers/ params")
             #print(url)
@@ -299,24 +310,23 @@ class AIOHttpConnection(AsyncConnection):
             #print(req_headers)
             #print(params)
             #print(">>>>>>>>>> About to execute _get_api_response")
-            async with self.session.request(
+            async with self._get_api_response(
                 method,
                 url,
-                data=body,
-                headers=req_headers,
-                timeout=timeout,
-                fingerprint=self.ssl_assert_fingerprint,
+                body,
+                req_headers,
+                params
             ) as response:
                 #print(">>>>>>>>>>>>>> MAJOR :::: ")
                 #print(response)
                 #print(dir(response))
                 if is_head:  # We actually called 'GET' so throw away the data.
                     #print("In the if part")
-                    await response.release()
+                    response.content
                     raw_data = ""
                 else:
                     #print("In the else part")
-                    raw_data = await response.text()
+                    raw_data = response.content
                 #print(">>>>> We're here!!!!")
                 #print(raw_data)
                 duration = self.loop.time() - start
@@ -328,8 +338,8 @@ class AIOHttpConnection(AsyncConnection):
             #print(">>>>>>>>>>>>>>>>>>>>>>>>Async http caught exception ")
             #print(traceback.format_exc())
             #print(">>>>>>>>>>>>>>>>>>>>>>>>Async http caught exception ")
-            # #print(e)
-            # #print(e.status_code)
+            #print(e)
+            #print(e.status_code)
             self.log_request_fail(
                 method,
                 str(url),
@@ -351,20 +361,20 @@ class AIOHttpConnection(AsyncConnection):
 #         self._raise_warnings(warning_headers)
 
         # raise errors based on http status codes, let the client handle those if needed
-        if not (200 <= response.status < 300) and response.status not in ignore:
+        if not (200 <= response.status_code < 300) and response.status_code not in ignore:
             self.log_request_fail(
                 method,
                 str(url),
                 url_path,
                 orig_body,
                 duration,
-                status_code=response.status,
+                status_code=response.status_code,
                 response=raw_data,
             )
-            self._raise_error(response.status, raw_data)
+            self._raise_error(response.status_code, raw_data)
 
         self.log_request_success(
-            method, str(url), url_path, orig_body, response.status, raw_data, duration
+            method, str(url), url_path, orig_body, response.status_code, raw_data, duration
         )
 
 
@@ -392,9 +402,10 @@ class AIOHttpConnection(AsyncConnection):
         async def __aenter__(self):
             response = ''
             #print(">>>>>>>>>>>>>>Achit Inside _get_api_response")
-            region = 'eu-west-1'
+            region = 'us-east-1'
             service = 'aoss'  ## also tried with 'os', 'osearch', 'opensearch'
             credentials = boto3.Session().get_credentials()
+            cred_client = boto3.client('sts')
             my_headers = {"Content-Type": "application/json"}
             awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service)
 
