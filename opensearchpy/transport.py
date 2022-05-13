@@ -362,26 +362,13 @@ class Transport(object):
         :arg body: body of the request, will be serialized using serializer and
             passed to the connection
         """
-        #print(">>>>>>>>>>>> previous body version")
-        #print(body)
-        #print(">>>>>>>>>>>> end previous body version")
         method, params, body, ignore, timeout = self._resolve_request_args(
             method, params, body
         )
 
-        #print(">>>>>>Received request for : ")
-        #print(url)
-        #print(">>>>>>>>method")
-        #print(method)
-        #print(">>>>>>>>>params")
-        #print(params)
-        #print(">>>>>>>>>>>>body")
-        #print(body)
-
         for attempt in range(self.max_retries + 1):
             connection = self.get_connection()
 
-            #print("Attempting to execute request")
             try:
                 status, headers_response, data = connection.perform_request(
                     method,
@@ -393,13 +380,6 @@ class Transport(object):
                     timeout=timeout,
                 )
 
-                #print(">>>>>>>status")
-                #print(status)
-                #print(">>>>>>>>>>headers_response")
-                #print(headers_response)
-                #print(">>>>>>>>>>>data")
-                #print(data)
-
 # COMMENTED OUT FOR SIGV4
 #                 # Lowercase all the header names for consistency in accessing them.
 #                 headers_response = {
@@ -407,8 +387,6 @@ class Transport(object):
 #                 }
 
             except TransportError as e:
-                #print("Inside transport exception!!!!")
-                #print(e)
                 if method == "HEAD" and e.status_code == 404:
                     return False
 
@@ -445,8 +423,6 @@ class Transport(object):
                     data = self.deserializer.loads(
                         data, headers_response.get("content-type")
                     )
-                #print("return data is >>>>>>>>")
-                #print(data)
                 return data
 
     def close(self):

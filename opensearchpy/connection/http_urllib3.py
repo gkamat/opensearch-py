@@ -226,22 +226,11 @@ class Urllib3HttpConnection(Connection):
         self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
     ):
         import logging
-        logging.info("USING PERFORM_REQUEST IN HTTP_URLLIB3")
         if "mensor-metrics" not in self.host:
-            logging.info("USING SIGV4_PERFORM_REQUEST")
-            print("Going to sigV4 >>>>>>>>>>>")
-            print(">>>>self.host")
-            print(self.host)
-            print(">>>>>>url")
-            print(url)
+            logging.info("Using sigv4 method to perform request")
             return self.sigv4_perform_request(method, url, params, body, timeout, ignore, headers)
         else:
-            logging.info("USING DEFAULT_PERFORM_REQUEST")
-            print(">>>>self.host")
-            print(self.host)
-            print(">>>>>>url")
-            print(url)
-            print("going to standard perform requests>>>>>>>>>>")
+            logging.info("Using default method to perform request")
             return self.default_perform_request(method, url, params, body, timeout, ignore, headers)
 
     def default_perform_request(
@@ -317,25 +306,8 @@ class Urllib3HttpConnection(Connection):
             self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
     ):
 
-        print('>>>>>> initial url is ')
-        print(url)
-        print('........ params')
-        print(params)
-        print('........ method')
-        print(method)
-        print('........ body')
-        print(body)
-        print('........ headers')
-        print(headers)
-        print('........ host')
-        print(self.host)
         url = self.url_prefix + url
-        # if params:
-        #     url = "%s?%s" % (url, urlencode(params))
         full_url = self.host + url
-
-        #print('>>>>>>> full url')
-        #print(full_url)
 
         start = time.time()
         orig_body = body
@@ -359,26 +331,11 @@ class Urllib3HttpConnection(Connection):
                 body = self._gzip_compress(body)
                 request_headers["content-encoding"] = "gzip"
 
-            #print('>>>>>>url is ')
-            #print(url)
-            # response = self.pool.urlopen(
-            #     method, url, body, retries=Retry(False), headers=request_headers, **kw
-            # )
             response = ''
             region = 'us-east-1'
             service = 'aoss' ## also tried with 'os', 'osearch', 'opensearch'
             credentials = boto3.Session().get_credentials()
-#             my_headers = {"Content-Type": "application/json"}
             awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service)
-
-            #print('>>>> params')
-            #print(params)
-            #print('>>> awsauth')
-            #print(awsauth)
-            #print('>>>>> request_headers')
-            #print(my_headers)
-            #print(">>>>>full_url")
-            #print(full_url)
 
             if method == 'GET':
                 response = requests.get(full_url, auth=awsauth)
@@ -394,19 +351,11 @@ class Urllib3HttpConnection(Connection):
                 response = requests.put(full_url, auth=awsauth, data=body)
 
             duration = time.time() - start
-            #print('>>>>>>>> response ')
-            #print(response)
-            #print('>>>>>>> response.content')
-            #print(response.content)
-            #print('>>>>>>> response.status_code')
-            #print(response.status_code)
             raw_data = response.content
 
             # raise warnings if any from the 'Warnings' header.
 
         except Exception as e:
-            #print(">>>>>>>>>>>>>Exception is :::::::::::::::::")
-            #print(e)
             self.log_request_fail(
                 method, full_url, url, orig_body, time.time() - start, exception=e
             )
@@ -416,11 +365,6 @@ class Urllib3HttpConnection(Connection):
                 raise ConnectionTimeout("TIMEOUT", str(e), e)
             raise ConnectionError("N/A", str(e), e)
 
-        #print(">>>>>> response :")
-        #print(response)
-
-        #print(dir(response))
-        #print(response.status_code)
         # raise errors based on http status codes, let the client handle those if needed
         if not (200 <= response.status_code < 300) and response.status_code not in ignore:
             self.log_request_fail(

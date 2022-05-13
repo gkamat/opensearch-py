@@ -302,14 +302,6 @@ class AIOHttpConnection(AsyncConnection):
             logging.info("body: ", body)
             logging.info("req_headers: ", req_headers)
             logging.info("params: ", params)
-            #print(">>>>>>>>>> About to execute _get_api_response")
-            #print(">>>>>>>>>> url/ method/ body/ req_headers/ params")
-            #print(url)
-            #print(method)
-            #print(body)
-            #print(req_headers)
-            #print(params)
-            #print(">>>>>>>>>> About to execute _get_api_response")
             async with self._get_api_response(
                 method,
                 url,
@@ -317,29 +309,17 @@ class AIOHttpConnection(AsyncConnection):
                 req_headers,
                 params
             ) as response:
-                #print(">>>>>>>>>>>>>> MAJOR :::: ")
-                #print(response)
-                #print(dir(response))
                 if is_head:  # We actually called 'GET' so throw away the data.
-                    #print("In the if part")
                     response.content
                     raw_data = ""
                 else:
-                    #print("In the else part")
                     raw_data = response.content
-                #print(">>>>> We're here!!!!")
-                #print(raw_data)
                 duration = self.loop.time() - start
 
         # We want to reraise a cancellation or recursion error.
         except reraise_exceptions:
             raise
         except Exception as e:
-            #print(">>>>>>>>>>>>>>>>>>>>>>>>Async http caught exception ")
-            #print(traceback.format_exc())
-            #print(">>>>>>>>>>>>>>>>>>>>>>>>Async http caught exception ")
-            #print(e)
-            #print(e.status_code)
             self.log_request_fail(
                 method,
                 str(url),
@@ -377,12 +357,6 @@ class AIOHttpConnection(AsyncConnection):
             method, str(url), url_path, orig_body, response.status_code, raw_data, duration
         )
 
-
-        #print(">>>>>>>>>>>Returning values:")
-        #print(response.status_code)
-        #print(response.headers)
-        #print(raw_data)
-
         return response.status_code, response.headers, raw_data
 
     class _get_api_response:
@@ -401,26 +375,12 @@ class AIOHttpConnection(AsyncConnection):
 
         async def __aenter__(self):
             response = ''
-            #print(">>>>>>>>>>>>>>Achit Inside _get_api_response")
             region = 'us-east-1'
             service = 'aoss'  ## also tried with 'os', 'osearch', 'opensearch'
             credentials = boto3.Session().get_credentials()
             cred_client = boto3.client('sts')
             my_headers = {"Content-Type": "application/json"}
             awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service)
-
-            #print('>>>> self.method')
-            #print(self.method)
-            #print('>>>> params')
-            #print(self.params)
-            #print('>>> awsauth')
-            #print(awsauth)
-            #print('>>>>> request_headers')
-            #print(my_headers)
-            #print(">>>>>self.full_url")
-            #print(self.full_url)
-            #print('>>>>>>> self.body')
-            #print(self.body)
 
             if self.method == 'GET':
                 response = requests.get(self.full_url, auth=awsauth)

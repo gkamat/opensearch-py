@@ -171,12 +171,7 @@ class RequestsHttpConnection(Connection):
         send_kwargs.update(settings)
         try:
             response = ''
-            #print(">>>>>params1")
-            #print(params)
-            #print(">>>>>>url1")
-            #print(url)
-            #print(">>>>>>>>>request_headers1")
-            #print(request_headers)
+
             if method == 'GET':
                 response = requests.get(url, auth=awsauth, headers=request_headers)
             elif method == 'HEAD':
@@ -192,12 +187,6 @@ class RequestsHttpConnection(Connection):
 
             duration = time.time() - start
 
-            #print('>>>>>>>> response1 ')
-            #print(response)
-            #print('>>>>>>> response.content1')
-            #print(response.content)
-            #print('>>>>>>> response.status1')
-            #print(response.status)
             raw_data = response.content
         except reraise_exceptions:
             raise
