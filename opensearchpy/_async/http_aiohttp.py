@@ -235,10 +235,8 @@ class AIOHttpConnection(AsyncConnection):
         self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
     ):
         import logging
-        logging.info("INSIDE PERFORM_REQUEST FROM HTTP_AIOHTTP")
 
         if self.session is None:
-            logging.info("Creating session")
             await self._create_aiohttp_session()
         assert self.session is not None
 
@@ -296,12 +294,6 @@ class AIOHttpConnection(AsyncConnection):
 
         start = self.loop.time()
         try:
-            logging.info("About to execute _get_api_response")
-            logging.info("url :", url)
-            logging.info("method: ", method)
-            logging.info("body: ", body)
-            logging.info("req_headers: ", req_headers)
-            logging.info("params: ", params)
             async with self._get_api_response(
                 method,
                 url,
