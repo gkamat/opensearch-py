@@ -24,6 +24,7 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
+import os
 import ssl
 import time
 import warnings
@@ -332,7 +333,7 @@ class Urllib3HttpConnection(Connection):
                 request_headers["content-encoding"] = "gzip"
 
             response = ''
-            region = 'us-east-1'
+            region = os.environ.get('AWS_REGION', 'us-east-1')
             service = 'aoss' ## also tried with 'os', 'osearch', 'opensearch'
             credentials = boto3.Session().get_credentials()
             awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service)
