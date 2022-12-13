@@ -24,6 +24,7 @@
 #  specific language governing permissions and limitations
 #  under the License.
 
+import os
 import time
 import warnings
 
@@ -48,7 +49,7 @@ import boto3
 import requests
 from requests_aws4auth import AWS4Auth
 
-region = 'us-east-1'
+region = os.environ.get('AWS_REGION', 'us-east-1')
 service = 'aoss' ## also tried with 'os', 'osearch', 'opensearch'
 credentials = boto3.Session().get_credentials()
 awsauth = AWS4Auth(credentials.access_key, credentials.secret_key, region, service)

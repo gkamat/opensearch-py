@@ -367,7 +367,7 @@ class AIOHttpConnection(AsyncConnection):
 
         async def __aenter__(self):
             response = ''
-            region = 'us-east-1'
+            region = os.environ.get('AWS_REGION', 'us-east-1')
             service = 'aoss'  ## also tried with 'os', 'osearch', 'opensearch'
             credentials = boto3.Session().get_credentials()
             cred_client = boto3.client('sts')
