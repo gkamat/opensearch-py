@@ -144,6 +144,7 @@ class Urllib3HttpConnection(Connection):
             opaque_id=opaque_id,
             **kwargs
         )
+        self.no_sigv4 = kwargs.get("no_sigv4", False)
         if http_auth is not None:
             if isinstance(http_auth, (tuple, list)):
                 http_auth = ":".join(http_auth)
@@ -227,7 +228,7 @@ class Urllib3HttpConnection(Connection):
         self, method, url, params=None, body=None, timeout=None, ignore=(), headers=None
     ):
         import logging
-        if "mensor-metrics" not in self.host:
+        if not self.no_sigv4:
             logging.info("Using sigv4 method to perform request")
             return self.sigv4_perform_request(method, url, params, body, timeout, ignore, headers)
         else:
@@ -293,8 +294,7 @@ class Urllib3HttpConnection(Connection):
             )
             self._raise_error(
                 response.status,
-                raw_data,
-                self.get_response_headers(response).get("content-type"),
+                raw_data
             )
 
         self.log_request_success(
